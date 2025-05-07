@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dolphin/core/image/app_Image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 class AddPostPage extends StatefulWidget {
   const AddPostPage({super.key});
@@ -13,17 +17,80 @@ class AddPostPage extends StatefulWidget {
 class _AddPostPageState extends State<AddPostPage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
   final TextEditingController postController = TextEditingController();
+  File? selectedImage;
+  bool _isUploading = false;
 
-  void postMessage() async {
-    if (postController.text.trim().isNotEmpty) {
-      await FirebaseFirestore.instance.collection('User Posts').add({
-        "UserEmail": currentUser.email,
-        "Message": postController.text.trim(),
-        "TimeStamp": Timestamp.now(),
-      });
+  final String cloudName = "dpscvfrlp";
+  final String uploadPreset = "flutter_unsigned";
 
-      if (context.mounted) Navigator.pop(context);
+  Future<void> pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 900,
+      maxHeight: 500,
+      imageQuality: 80,
+    );
+    if (pickedFile != null) {
+      setState(() => selectedImage = File(pickedFile.path));
     }
+  }
+
+  Future<String?> uploadToCloudinary(File imageFile) async {
+    final uri = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+    );
+
+    final request =
+        http.MultipartRequest('POST', uri)
+          ..fields['upload_preset'] = uploadPreset
+          ..files.add(
+            await http.MultipartFile.fromPath('file', imageFile.path),
+          );
+
+    final response = await request.send();
+    final resBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(resBody);
+      return data['secure_url'];
+    } else {
+      print('Cloudinary upload failed: $resBody');
+      return null;
+    }
+  }
+
+  Future<void> postMessage() async {
+    if (postController.text.trim().isEmpty && selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Write a message or select an image")),
+      );
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    String? imageUrl;
+    if (selectedImage != null) {
+      imageUrl = await uploadToCloudinary(selectedImage!);
+      if (imageUrl == null) {
+        setState(() => _isUploading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Image upload failed")));
+        return;
+      }
+    }
+
+    await FirebaseFirestore.instance.collection('User Posts').add({
+      "UserEmail": currentUser.email,
+      "Message": postController.text.trim(),
+      "ImageURL": imageUrl ?? '',
+      "TimeStamp": Timestamp.now(),
+      "userId": currentUser.uid,
+    });
+
+    setState(() => _isUploading = false);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -36,32 +103,163 @@ class _AddPostPageState extends State<AddPostPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
+        backgroundColor: const Color(0xFF0F2027),
+        title: Text(
+          "New Post",
+          style: GoogleFonts.poppins(color: Colors.white, fontSize: 15),
+        ),
         actions: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.all(8.0),
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              onPressed: postMessage,
-              child: Text('Post', style: TextStyle(color: Colors.white)),
+              onPressed: _isUploading ? null : postMessage,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child:
+                  _isUploading
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : const Text(
+                        "Post",
+                        style: TextStyle(color: Colors.white),
+                      ),
             ),
           ),
         ],
-        title: Row(
-          children: [
-            Image.asset(AppImage.logo, scale: 15),
-            const SizedBox(width: 10),
-            Text('Dolphin'),
-          ],
-        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: TextField(
-          controller: postController,
-          maxLines: 2,
-          decoration: InputDecoration(
-            labelText: "Write down your thought...",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: postController,
+                    maxLines: 3,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: "What's on your mind?",
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white24),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.tealAccent),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (selectedImage != null)
+                    /*
+                    Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(selectedImage!, height: 120),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_forever_outlined,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => setState(() => selectedImage = null),
+                        ),
+                      ],
+                    ),
+                    */
+                    Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            selectedImage!,
+                            height: 160,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: InkWell(
+                            onTap: () => setState(() => selectedImage = null),
+                            borderRadius: BorderRadius.circular(30),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              padding: const EdgeInsets.all(6),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: pickImage,
+                    icon: const Icon(Icons.image, color: Colors.white),
+                    label: const Text(
+                      "Add Image",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal.withOpacity(0.85),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

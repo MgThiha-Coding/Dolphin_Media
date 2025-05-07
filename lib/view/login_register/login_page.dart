@@ -2,6 +2,7 @@ import 'package:dolphin/core/image/app_Image.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginPage extends StatefulWidget {
   final Function() onTap;
@@ -17,26 +18,6 @@ class _LoginPageState extends State<LoginPage> {
   GlobalKey key = GlobalKey<FormState>();
   bool obscure = true;
 
-  /*
-  void signIn() async {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Center(child: CircularProgressIndicator());
-      },
-    );
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text,
-        password: passwordController.text,
-      );
-      if (context.mounted) Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      Navigator.pop(context);
-      displayMessage(e.code);
-    }
-  }
-  */
   void signIn() async {
     showDialog(
       context: context,
@@ -55,9 +36,6 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(); // safely close dialog
       }
-
-      // Optional: Navigate manually if not using StreamBuilder
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()));
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
@@ -102,18 +80,19 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0D1B2A), // Deep sea dark background
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 15),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(AppImage.logo, scale: 8),
-
+            const SizedBox(height: 10),
             Text(
               'Dolphin',
-              style: TextStyle(
-                color: Colors.blueGrey,
-                fontSize: 25,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -123,22 +102,24 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 children: [
                   TextFormField(
-                    maxLines: 1,
-
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.email),
-                      prefixIconColor: Colors.grey[600],
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide(color: Colors.blue),
-                      ),
-
+                      filled: true,
+                      fillColor: Colors.blueGrey[800],
+                      prefixIcon: Icon(Icons.email, color: Colors.cyan[200]),
                       hintText: "Email",
+                      hintStyle: TextStyle(color: Colors.cyan[200]),
                       labelText: "Email",
+                      labelStyle: TextStyle(color: Colors.cyan[100]),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide(color: Colors.cyanAccent),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide(color: Colors.cyanAccent),
                       ),
                     ),
                     validator: (value) {
@@ -152,32 +133,31 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
-                    maxLines: 1,
-                    obscureText: obscure,
                     controller: passwordController,
-                    keyboardType: TextInputType.emailAddress,
+                    obscureText: obscure,
+                    style: TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.lock),
-                      prefixIconColor: Colors.grey[600],
+                      filled: true,
+                      fillColor: Colors.blueGrey[800],
+                      prefixIcon: Icon(Icons.lock, color: Colors.cyan[200]),
                       suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            obscure = !obscure;
-                          });
-                        },
-                        icon:
-                            obscure
-                                ? Icon(Icons.visibility_off)
-                                : Icon(Icons.visibility),
+                        icon: Icon(
+                          obscure ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.cyan[200],
+                        ),
+                        onPressed: () => setState(() => obscure = !obscure),
+                      ),
+                      hintText: "Password",
+                      hintStyle: TextStyle(color: Colors.cyan[200]),
+                      labelText: "Password",
+                      labelStyle: TextStyle(color: Colors.cyan[100]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide(color: Colors.cyanAccent),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide(color: Colors.blue),
-                      ),
-                      hintText: "Password",
-                      labelText: "Password",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide(color: Colors.cyanAccent),
                       ),
                     ),
                     validator: (value) {
@@ -189,21 +169,27 @@ class _LoginPageState extends State<LoginPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
                   Container(
                     height: 50,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.green,
+                      gradient: LinearGradient(
+                        colors: [Colors.teal[400]!, Colors.cyan[600]!],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: MaterialButton(
-                      onPressed: () {
-                        signIn();
-                      },
-                      child: Text(
+                      onPressed: signIn,
+                      child: const Text(
                         'Login',
-                        style: TextStyle(color: Colors.white, letterSpacing: 1),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ),
                   ),
@@ -212,15 +198,18 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "If you don't have an account?",
-                        style: TextStyle(color: Colors.blueGrey),
+                        "Don't have an account?",
+                        style: TextStyle(color: Colors.cyan[200]),
                       ),
                       const SizedBox(width: 4),
                       GestureDetector(
                         onTap: widget.onTap,
                         child: Text(
                           'Sign Up',
-                          style: TextStyle(color: Colors.blue),
+                          style: TextStyle(
+                            color: Colors.cyanAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],

@@ -1,5 +1,5 @@
 import 'package:dolphin/firebase_options.dart';
-import 'package:dolphin/view/login_register/auth_service.dart';
+import 'package:dolphin/view/splash_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +16,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: AuthService());
+    return MaterialApp(debugShowCheckedModeBanner: false, home: SplashPage());
   }
 }
