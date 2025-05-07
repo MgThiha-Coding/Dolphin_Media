@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dolphin/core/image/app_Image.dart';
+import 'package:dolphin/view/components/drawer.dart';
 import 'package:dolphin/view/home/add_post_page.dart';
 import 'package:dolphin/view/home/post.dart';
+import 'package:dolphin/view/home/profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,119 +19,103 @@ class _HomePageState extends State<HomePage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
 
   void signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-    } on FirebaseException catch (e) {
-      print(e.code);
-    }
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 10,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [Colors.cyan.shade200, Colors.blueAccent.shade100],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person_outline, color: Colors.blueAccent),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  currentUser.email!,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Are you sure you want to log out?",
+                  style: TextStyle(fontSize: 10, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.cancel_outlined,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        "No",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        signOut();
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text("Yes"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void gotoProfilePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ProfilePage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: MyDrawer(onProfileTap: gotoProfilePage, onSignOut: signOut),
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         backgroundColor: Color(0xFF0F2027),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: GestureDetector(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) {
-                    return Dialog(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 10,
-                      backgroundColor: Colors.transparent,
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.cyan.shade200,
-                              Colors.blueAccent.shade100,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Colors.white,
-                              child: Icon(
-                                Icons.person_outline,
-                                color: Colors.blueAccent,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              currentUser.email!,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              "Are you sure you want to log out?",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(
-                                    Icons.cancel_outlined,
-                                    color: Colors.white,
-                                  ),
-                                  label: const Text(
-                                    "No",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    signOut();
-                                    Navigator.pop(context);
-                                  },
-                                  icon: const Icon(Icons.logout, size: 18),
-                                  label: const Text("Yes"),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-              child: CircleAvatar(
-                child: Icon(Icons.person_outline, color: Colors.blue),
-              ),
-            ),
-          ),
-        ],
+
         title: Row(
           children: [
             Image.asset(AppImage.logo, scale: 15),
@@ -155,7 +141,7 @@ class _HomePageState extends State<HomePage> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
             child: Column(
               children: [
                 Container(
@@ -238,6 +224,7 @@ class _HomePageState extends State<HomePage> {
                                 imageUrl: imageUrl,
                                 currentUserEmail: currentUser.email!,
                                 time: post['TimeStamp'],
+                                likes: List<String>.from(post['Likes'] ?? []),
                               ),
                             );
                           },

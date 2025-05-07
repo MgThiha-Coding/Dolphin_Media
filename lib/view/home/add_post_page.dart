@@ -87,6 +87,7 @@ class _AddPostPageState extends State<AddPostPage> {
       "ImageURL": imageUrl ?? '',
       "TimeStamp": Timestamp.now(),
       "userId": currentUser.uid,
+      'Likes': [],
     });
 
     setState(() => _isUploading = false);
@@ -149,8 +150,8 @@ class _AddPostPageState extends State<AddPostPage> {
         child: Center(
           child: SingleChildScrollView(
             child: Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(20),
@@ -168,7 +169,7 @@ class _AddPostPageState extends State<AddPostPage> {
                 children: [
                   TextField(
                     controller: postController,
-                    maxLines: 3,
+                    maxLines: 8,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: "What's on your mind?",
@@ -190,23 +191,6 @@ class _AddPostPageState extends State<AddPostPage> {
                   ),
                   const SizedBox(height: 16),
                   if (selectedImage != null)
-                    /*
-                    Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(selectedImage!, height: 120),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_forever_outlined,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => setState(() => selectedImage = null),
-                        ),
-                      ],
-                    ),
-                    */
                     Stack(
                       alignment: Alignment.topRight,
                       children: [
@@ -243,19 +227,27 @@ class _AddPostPageState extends State<AddPostPage> {
                     ),
 
                   const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: pickImage,
-                    icon: const Icon(Icons.image, color: Colors.white),
-                    label: const Text(
-                      "Add Image",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.withOpacity(0.85),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 35,
+                        child: ElevatedButton.icon(
+                          onPressed: pickImage,
+                          icon: const Icon(Icons.image, color: Colors.white),
+                          label: const Text(
+                            "Photo",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.withOpacity(0.85),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
