@@ -1,3 +1,4 @@
+import 'package:dolphin/core/image/app_Image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dolphin/view/components/comment.dart';
@@ -224,6 +225,74 @@ class _PostState extends State<Post> {
     }
   }
 
+  void showReactionDialog(BuildContext context) async {
+    List<String> likes = [];
+
+    try {
+      DocumentSnapshot postSnapshot =
+          await FirebaseFirestore.instance
+              .collection("User Posts")
+              .doc(widget.postId)
+              .get();
+
+      if (postSnapshot.exists) {
+        likes = List<String>.from(postSnapshot['Likes'] ?? []);
+      }
+
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) {
+          return Dialog(
+            backgroundColor: Colors.white.withOpacity(0.2),
+
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'People who reacted',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // List of reactions (likes)
+                  ListView(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    children:
+                        likes.map((likedUser) {
+                          return ListTile(
+                            title: Text(
+                              likedUser,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      print("Error fetching reactions: $e");
+      // Optionally, show a message if there's an error
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -242,13 +311,22 @@ class _PostState extends State<Post> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     CircleAvatar(
-                      backgroundColor: Colors.white,
-                      child: Image.asset(
-                        'assets/images/logo.png', // Adjust this path to your assets
-                        fit: BoxFit.cover,
-                        scale: 18,
+                      backgroundColor: Colors.white.withOpacity(
+                        0.2,
+                      ), // Adjust opacity here
+                      child: Text(
+                        widget.user.isNotEmpty
+                            ? widget.user[0].toUpperCase()
+                            : '',
+                        style: TextStyle(
+                          color:
+                              Colors
+                                  .white, // Set the color of the text as needed
+                          fontSize: 20, // Adjust font size if necessary
+                        ),
                       ),
                     ),
+
                     const SizedBox(width: 2),
                     Text(widget.user, style: TextStyle(color: Colors.white)),
                     // Format the timestamp
@@ -307,10 +385,11 @@ class _PostState extends State<Post> {
             // Display the image if imageUrl is available
             if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
               Image.network(widget.imageUrl!, fit: BoxFit.cover),
-            Divider(),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Likes and LikeButton
                 Expanded(
                   child: Row(
                     children: [
@@ -331,49 +410,67 @@ class _PostState extends State<Post> {
                         onTap: toggleLike,
                         toggleLike: () {}, // Directly call toggleLike
                       ),
+                      TextButton(
+                        onPressed: () {
+                          showReactionDialog(context);
+                        },
+                        child: Text('see'),
+                      ),
                     ],
                   ),
                 ),
+
                 TextButton(
                   onPressed: () {
                     showCommentDropUp();
                   },
-                  child: Text(
-                    'Write a comment..',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: Text('Comment', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
 
-            // Comments Stream with "See more" and "See less"
-            StreamBuilder(
-              stream:
-                  FirebaseFirestore.instance
-                      .collection("User Posts")
-                      .doc(widget.postId)
-                      .collection("Comments")
-                      .orderBy("CommentTime", descending: true)
-                      .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final comments = snapshot.data!.docs;
-                final visibleComments =
-                    _showAllComments
-                        ? comments
-                        : comments.take(3).toList(); // Limit to 3 comments
+            ExpansionTile(
+              title: Row(
+                children: [
+                  Text(
+                    "Comments",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              iconColor: Colors.white,
+              collapsedIconColor: Colors.white,
+              children: [
+                StreamBuilder(
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection("User Posts")
+                          .doc(widget.postId)
+                          .collection("Comments")
+                          .orderBy("CommentTime", descending: true)
+                          .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                return Column(
-                  children: [
-                    ListView(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(child: Text('No comments yet'));
+                    }
+
+                    final comments = snapshot.data!.docs;
+
+                    return Column(
                       children:
-                          visibleComments.map((doc) {
+                          comments.map((doc) {
                             final commentData = doc.data();
-                            final commentId = doc.id;
                             final commentBy = commentData["CommentBy"];
 
                             return ListTile(
@@ -385,34 +482,28 @@ class _PostState extends State<Post> {
                                 ),
                                 commentBy: commentBy,
                                 currentUserEmail: currentUser.email!,
-                                commentId: commentId,
+                                commentId: doc.id,
                                 postId: widget.postId,
                               ),
                             );
                           }).toList(),
-                    ),
-                    if (comments.length > 3)
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _showAllComments = !_showAllComments;
-                          });
-                        },
-                        child: Text(
-                          _showAllComments ? 'See less' : 'See more',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                  ],
-                );
-              },
+                    );
+                  },
+                ),
+              ],
             ),
 
-            // Reactions ExpansionTile with "See more" and "See less"
+            /*
             ExpansionTile(
               title: Row(
                 children: [
-                  Text("Reactions", style: TextStyle(color: Colors.amber)),
+                  Text(
+                    "Reactions",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
               iconColor: Colors.white,
@@ -422,46 +513,21 @@ class _PostState extends State<Post> {
                   shrinkWrap: true,
                   physics: NeverScrollableScrollPhysics(),
                   children:
-                      _showAllReactions
-                          ? widget.likes
-                              .map(
-                                (likedUser) => ListTile(
-                                  title: Text(
-                                    likedUser,
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList()
-                          : widget.likes.take(3).map((likedUser) {
-                            return ListTile(
-                              title: Text(
-                                likedUser,
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            );
-                          }).toList(),
+                      widget.likes.map((likedUser) {
+                        return ListTile(
+                          title: Text(
+                            likedUser,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }).toList(),
                 ),
-                if (widget.likes.length > 3)
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _showAllReactions = !_showAllReactions;
-                      });
-                    },
-                    child: Text(
-                      _showAllReactions ? 'See less' : 'See more',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
               ],
             ),
+            */
           ],
         ),
       ),
