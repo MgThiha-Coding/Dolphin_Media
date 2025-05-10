@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class AddPostPage extends StatefulWidget {
   const AddPostPage({super.key});
@@ -26,12 +29,26 @@ class _AddPostPageState extends State<AddPostPage> {
   Future<void> pickImage() async {
     final pickedFile = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      maxWidth: 900,
-      maxHeight: 500,
-      imageQuality: 80,
     );
+
     if (pickedFile != null) {
-      setState(() => selectedImage = File(pickedFile.path));
+      final tempDir = await getTemporaryDirectory();
+      final targetPath = path.join(
+        tempDir.path,
+        'compressed_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        pickedFile.path,
+        targetPath,
+        quality: 20,
+        minWidth: 900,
+        minHeight: 500,
+      );
+
+      if (compressedFile != null) {
+        setState(() => selectedImage = File(compressedFile.path));
+      }
     }
   }
 
@@ -72,6 +89,9 @@ class _AddPostPageState extends State<AddPostPage> {
     String? imageUrl;
     if (selectedImage != null) {
       imageUrl = await uploadToCloudinary(selectedImage!);
+      await selectedImage!.delete(); // Clear storage
+      selectedImage = null;
+
       if (imageUrl == null) {
         setState(() => _isUploading = false);
         ScaffoldMessenger.of(
@@ -104,7 +124,7 @@ class _AddPostPageState extends State<AddPostPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: const Color(0xFF0F2027),
         title: Text(
           "New Post",
@@ -156,7 +176,7 @@ class _AddPostPageState extends State<AddPostPage> {
                 color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.white10),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
                     blurRadius: 10,
@@ -210,7 +230,7 @@ class _AddPostPageState extends State<AddPostPage> {
                             onTap: () => setState(() => selectedImage = null),
                             borderRadius: BorderRadius.circular(30),
                             child: Container(
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: Colors.black54,
                                 shape: BoxShape.circle,
                               ),
@@ -225,12 +245,11 @@ class _AddPostPageState extends State<AddPostPage> {
                         ),
                       ],
                     ),
-
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Container(
+                      SizedBox(
                         height: 35,
                         child: ElevatedButton.icon(
                           onPressed: pickImage,

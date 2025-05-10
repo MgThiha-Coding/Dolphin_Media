@@ -18,7 +18,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final currentUser = FirebaseAuth.instance.currentUser!;
 
-  void signOut() async {
+  void signOutDialog() {
     showDialog(
       context: context,
       builder: (context) {
@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  currentUser.email!,
+                  currentUser.email ?? '',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -77,8 +77,8 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        signOut();
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
                         Navigator.pop(context);
                       },
                       icon: const Icon(Icons.logout, size: 18),
@@ -104,18 +104,17 @@ class _HomePageState extends State<HomePage> {
   void gotoProfilePage() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => ProfilePage()),
+      MaterialPageRoute(builder: (context) => const ProfilePage()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: MyDrawer(onProfileTap: gotoProfilePage, onSignOut: signOut),
+      drawer: MyDrawer(onProfileTap: gotoProfilePage, onSignOut: signOutDialog),
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
-        backgroundColor: Color(0xFF0F2027),
-
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: const Color(0xFF0F2027),
         title: Row(
           children: [
             Image.asset(AppImage.logo, scale: 15),
@@ -132,11 +131,7 @@ class _HomePageState extends State<HomePage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0F2027), // deep ocean
-              Color(0xFF2C5364), // navy blend
-              Color(0xFF00B4DB), // tropical water blue
-            ],
+            colors: [Color(0xFF0F2027), Color(0xFF2C5364), Color(0xFF00B4DB)],
           ),
         ),
         child: SafeArea(
@@ -153,7 +148,7 @@ class _HomePageState extends State<HomePage> {
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 4,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
@@ -165,7 +160,7 @@ class _HomePageState extends State<HomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => AddPostPage(),
+                              builder: (context) => const AddPostPage(),
                             ),
                           );
                         },
@@ -175,67 +170,69 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       hintText: "What's on your mind?",
-                      hintStyle: TextStyle(color: Colors.white70),
+                      hintStyle: const TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: StreamBuilder(
+                  child: StreamBuilder<QuerySnapshot>(
                     stream:
                         FirebaseFirestore.instance
                             .collection('User Posts')
-                            .orderBy('TimeStamp', descending: false)
+                            .orderBy('TimeStamp', descending: true)
                             .snapshots(),
                     builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        return ListView.builder(
-                          itemCount: snapshot.data!.docs.length,
-                          itemBuilder: (context, index) {
-                            // Reverse the order of documents using reversed
-                            final post =
-                                snapshot.data!.docs.reversed.toList()[index];
-                            final imageUrl =
-                                post.data().containsKey('ImageURL')
-                                    ? post['ImageURL']
-                                    : '';
-
-                            return Container(
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Post(
-                                message: post['Message'],
-                                user: post['UserEmail'],
-                                postId: post.id,
-                                imageUrl: imageUrl,
-                                currentUserEmail: currentUser.email!,
-                                time: post['TimeStamp'],
-                                likes: List<String>.from(post['Likes'] ?? []),
-                              ),
-                            );
-                          },
-                        );
-                      } else if (snapshot.hasError) {
+                      if (snapshot.hasError) {
                         return Text(
                           'Error: ${snapshot.error}',
-                          style: TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
                         );
                       }
-                      return const Center(child: CircularProgressIndicator());
+
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final docs = snapshot.data!.docs;
+
+                      return ListView.builder(
+                        itemCount: docs.length,
+                        itemBuilder: (context, index) {
+                          final post =
+                              docs[index].data() as Map<String, dynamic>;
+                          final postId = docs[index].id;
+                          final imageUrl = post['ImageURL'] ?? '';
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Post(
+                              message: post['Message'] ?? '',
+                              user: post['UserEmail'] ?? 'Unknown',
+                              postId: postId,
+                              imageUrl: imageUrl,
+                              currentUserEmail: currentUser.email!,
+                              time: post['TimeStamp'],
+                              likes: List<String>.from(post['Likes'] ?? []),
+                            ),
+                          );
+                        },
+                      );
                     },
                   ),
                 ),

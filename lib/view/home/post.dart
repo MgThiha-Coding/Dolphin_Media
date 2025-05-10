@@ -4,6 +4,7 @@ import 'package:dolphin/view/components/comment.dart';
 import 'package:dolphin/view/components/like_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart'; // For formatting the timestamp
 
 class Post extends StatefulWidget {
@@ -33,63 +34,7 @@ class Post extends StatefulWidget {
 class _PostState extends State<Post> {
   late TextEditingController commentTextController = TextEditingController();
 
-  void deletePost(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            backgroundColor: const Color(0xFF1E3D59), // Deep marine blue
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Row(
-              children: const [
-                Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
-                SizedBox(width: 8),
-                Text("Delete Post?", style: TextStyle(color: Colors.white)),
-              ],
-            ),
-            content: const Text(
-              "🐬 Are you sure to delete this post?",
-              style: TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(color: Colors.lightBlueAccent),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.redAccent.withOpacity(0.8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text("Delete 🧨"),
-              ),
-            ],
-          ),
-    );
-
-    if (confirm == true) {
-      await FirebaseFirestore.instance
-          .collection('User Posts')
-          .doc(widget.postId)
-          .delete();
-    }
-  }
-
   // Method to format Timestamp to a readable string
-  /*
-  String formatTimestamp(Timestamp timestamp) {
-    DateTime dateTime = timestamp.toDate();
-    return DateFormat(' HH:mm   yyyy.MM.dd').format(dateTime);
-  }*/
   String formatTimestamp(Timestamp timestamp) {
     DateTime dateTime = timestamp.toDate();
     Duration diff = DateTime.now().difference(dateTime);
@@ -148,6 +93,7 @@ class _PostState extends State<Post> {
     }
   }
 
+  // Show the comment drop-up modal
   void showCommentDropUp() {
     showModalBottomSheet(
       context: context,
@@ -240,16 +186,61 @@ class _PostState extends State<Post> {
     );
   }
 
-  Future<void> deleteComment(String commentId) async {
+  // Function to delete the post
+  void deletePost(BuildContext context) async {
     try {
-      await FirebaseFirestore.instance
-          .collection("User Posts")
-          .doc(widget.postId)
-          .collection("Comments")
-          .doc(commentId)
-          .delete();
+      // Show confirmation dialog
+      bool? confirmDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Confirm Deletion"),
+            content: Text("Are you sure you want to delete this post?"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context, false); // User canceled
+                },
+                child: Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context, true); // User confirmed
+                },
+                child: Text("Delete"),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmDelete == true) {
+        // Delete the post from Firestore
+        await FirebaseFirestore.instance
+            .collection("User Posts")
+            .doc(widget.postId)
+            .delete();
+        // Optionally, you can also delete the post's associated comments
+        // await FirebaseFirestore.instance
+        //     .collection("User Posts")
+        //     .doc(widget.postId)
+        //     .collection("Comments")
+        //     .get()
+        //     .then((snapshot) {
+        //   for (var doc in snapshot.docs) {
+        //     doc.reference.delete();
+        //   }
+        // });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Post deleted successfully")));
+      }
     } catch (e) {
-      print("❌ Failed to delete comment: $e");
+      print("🔥 Error deleting post: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to delete post")));
     }
   }
 
@@ -378,6 +369,7 @@ class _PostState extends State<Post> {
               ],
             ),
 
+            // Comments Stream
             StreamBuilder(
               stream:
                   FirebaseFirestore.instance
@@ -393,7 +385,7 @@ class _PostState extends State<Post> {
                 return ExpansionTile(
                   title: Row(
                     children: [
-                      Text("Comments", style: TextStyle(color: Colors.white)),
+                      Text("Comments", style: TextStyle(color: Colors.amber)),
                     ],
                   ),
                   iconColor: Colors.white,
@@ -426,6 +418,39 @@ class _PostState extends State<Post> {
                   ],
                 );
               },
+            ),
+            // Display who liked the post
+            ExpansionTile(
+              title: Row(
+                children: [
+                  Text("Reactions", style: TextStyle(color: Colors.amber)),
+                ],
+              ),
+              iconColor: Colors.white,
+              collapsedIconColor: Colors.white,
+              children:
+                  widget.likes.isNotEmpty
+                      ? widget.likes
+                          .map(
+                            (likedUser) => ListTile(
+                              title: Text(
+                                likedUser,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList()
+                      : [
+                        ListTile(
+                          title: Text(
+                            "No reactions yet.",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
             ),
           ],
         ),
