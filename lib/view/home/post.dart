@@ -1,11 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dolphin/core/image/app_Image.dart';
 import 'package:dolphin/view/components/comment.dart';
 import 'package:dolphin/view/components/like_button.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart'; // For formatting the timestamp
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class Post extends StatefulWidget {
   final String message;
@@ -34,7 +33,13 @@ class Post extends StatefulWidget {
 class _PostState extends State<Post> {
   late TextEditingController commentTextController = TextEditingController();
 
-  // Method to format Timestamp to a readable string
+  // For controlling the visibility of comments
+  bool _showAllComments = false;
+
+  // For controlling the visibility of reactions
+  bool _showAllReactions = false;
+
+  // Format the timestamp
   String formatTimestamp(Timestamp timestamp) {
     DateTime dateTime = timestamp.toDate();
     Duration diff = DateTime.now().difference(dateTime);
@@ -47,16 +52,16 @@ class _PostState extends State<Post> {
     return DateFormat('y MMM d').format(dateTime); // 2025 Apr 28
   }
 
-  // get the current user
   final currentUser = FirebaseAuth.instance.currentUser!;
+
   bool isLiked = false;
+
   @override
   void initState() {
     super.initState();
     isLiked = widget.likes.contains(currentUser.email);
   }
 
-  // toggle like
   void toggleLike() {
     setState(() {
       isLiked = !isLiked;
@@ -93,7 +98,6 @@ class _PostState extends State<Post> {
     }
   }
 
-  // Show the comment drop-up modal
   void showCommentDropUp() {
     showModalBottomSheet(
       context: context,
@@ -186,61 +190,37 @@ class _PostState extends State<Post> {
     );
   }
 
-  // Function to delete the post
   void deletePost(BuildContext context) async {
     try {
-      // Show confirmation dialog
-      bool? confirmDelete = await showDialog<bool>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text("Confirm Deletion"),
-            content: Text("Are you sure you want to delete this post?"),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context, false); // User canceled
-                },
-                child: Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context, true); // User confirmed
-                },
-                child: Text("Delete"),
-              ),
-            ],
-          );
-        },
-      );
+      // Delete the comments sub-collection
+      final commentsSnapshot =
+          await FirebaseFirestore.instance
+              .collection("User Posts")
+              .doc(widget.postId)
+              .collection("Comments")
+              .get();
 
-      if (confirmDelete == true) {
-        // Delete the post from Firestore
-        await FirebaseFirestore.instance
-            .collection("User Posts")
-            .doc(widget.postId)
-            .delete();
-        // Optionally, you can also delete the post's associated comments
-        // await FirebaseFirestore.instance
-        //     .collection("User Posts")
-        //     .doc(widget.postId)
-        //     .collection("Comments")
-        //     .get()
-        //     .then((snapshot) {
-        //   for (var doc in snapshot.docs) {
-        //     doc.reference.delete();
-        //   }
-        // });
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Post deleted successfully")));
+      for (var doc in commentsSnapshot.docs) {
+        await doc.reference.delete();
       }
-    } catch (e) {
-      print("🔥 Error deleting post: $e");
+
+      // Delete the post
+      await FirebaseFirestore.instance
+          .collection("User Posts")
+          .doc(widget.postId)
+          .delete();
+
+      // Optionally, show a success message or navigate back
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Failed to delete post")));
+      ).showSnackBar(SnackBar(content: Text("Post deleted successfully!")));
+
+      Navigator.pop(context); // Close the current screen (if any)
+    } catch (e) {
+      print("🔥 Failed to delete post: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to delete post!")));
     }
   }
 
@@ -264,7 +244,7 @@ class _PostState extends State<Post> {
                     CircleAvatar(
                       backgroundColor: Colors.white,
                       child: Image.asset(
-                        AppImage.logo,
+                        'assets/images/logo.png', // Adjust this path to your assets
                         fit: BoxFit.cover,
                         scale: 18,
                       ),
@@ -310,7 +290,7 @@ class _PostState extends State<Post> {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    SizedBox(width: 6), // spacing between dot and time
+                    SizedBox(width: 6),
                     Text(
                       widget.time != null ? formatTimestamp(widget.time!) : '',
                       style: TextStyle(color: Colors.white, fontSize: 10),
@@ -348,11 +328,8 @@ class _PostState extends State<Post> {
                       const SizedBox(width: 3),
                       LikeButton(
                         isLiked: isLiked,
-                        onTap: () {
-                          setState(() {
-                            toggleLike();
-                          });
-                        },
+                        onTap: toggleLike,
+                        toggleLike: () {}, // Directly call toggleLike
                       ),
                     ],
                   ),
@@ -369,7 +346,7 @@ class _PostState extends State<Post> {
               ],
             ),
 
-            // Comments Stream
+            // Comments Stream with "See more" and "See less"
             StreamBuilder(
               stream:
                   FirebaseFirestore.instance
@@ -382,20 +359,19 @@ class _PostState extends State<Post> {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                return ExpansionTile(
-                  title: Row(
-                    children: [
-                      Text("Comments", style: TextStyle(color: Colors.amber)),
-                    ],
-                  ),
-                  iconColor: Colors.white,
-                  collapsedIconColor: Colors.white,
+                final comments = snapshot.data!.docs;
+                final visibleComments =
+                    _showAllComments
+                        ? comments
+                        : comments.take(3).toList(); // Limit to 3 comments
+
+                return Column(
                   children: [
                     ListView(
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
                       children:
-                          snapshot.data!.docs.map((doc) {
+                          visibleComments.map((doc) {
                             final commentData = doc.data();
                             final commentId = doc.id;
                             final commentBy = commentData["CommentBy"];
@@ -415,11 +391,24 @@ class _PostState extends State<Post> {
                             );
                           }).toList(),
                     ),
+                    if (comments.length > 3)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showAllComments = !_showAllComments;
+                          });
+                        },
+                        child: Text(
+                          _showAllComments ? 'See less' : 'See more',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
                   ],
                 );
               },
             ),
-            // Display who liked the post
+
+            // Reactions ExpansionTile with "See more" and "See less"
             ExpansionTile(
               title: Row(
                 children: [
@@ -428,11 +417,27 @@ class _PostState extends State<Post> {
               ),
               iconColor: Colors.white,
               collapsedIconColor: Colors.white,
-              children:
-                  widget.likes.isNotEmpty
-                      ? widget.likes
-                          .map(
-                            (likedUser) => ListTile(
+              children: [
+                ListView(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  children:
+                      _showAllReactions
+                          ? widget.likes
+                              .map(
+                                (likedUser) => ListTile(
+                                  title: Text(
+                                    likedUser,
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList()
+                          : widget.likes.take(3).map((likedUser) {
+                            return ListTile(
                               title: Text(
                                 likedUser,
                                 style: GoogleFonts.poppins(
@@ -440,17 +445,22 @@ class _PostState extends State<Post> {
                                   fontSize: 12,
                                 ),
                               ),
-                            ),
-                          )
-                          .toList()
-                      : [
-                        ListTile(
-                          title: Text(
-                            "No reactions yet.",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
+                            );
+                          }).toList(),
+                ),
+                if (widget.likes.length > 3)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _showAllReactions = !_showAllReactions;
+                      });
+                    },
+                    child: Text(
+                      _showAllReactions ? 'See less' : 'See more',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),

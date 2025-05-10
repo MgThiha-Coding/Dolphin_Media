@@ -173,6 +173,7 @@ class _AddPostPageState extends State<AddPostPage> {
               margin: const EdgeInsets.all(4),
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
+                // ignore: deprecated_member_use
                 color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.white10),
@@ -185,16 +186,18 @@ class _AddPostPageState extends State<AddPostPage> {
                 ],
               ),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: postController,
-                    maxLines: 8,
+                    maxLines: null,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: "What's on your mind?",
                       labelStyle: const TextStyle(color: Colors.white70),
                       filled: true,
+                      // ignore: deprecated_member_use
                       fillColor: Colors.white.withOpacity(0.05),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -250,7 +253,7 @@ class _AddPostPageState extends State<AddPostPage> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       SizedBox(
-                        height: 35,
+                        height: 30,
                         child: ElevatedButton.icon(
                           onPressed: pickImage,
                           icon: const Icon(Icons.image, color: Colors.white),
@@ -259,6 +262,7 @@ class _AddPostPageState extends State<AddPostPage> {
                             style: TextStyle(color: Colors.white),
                           ),
                           style: ElevatedButton.styleFrom(
+                            // ignore: deprecated_member_use
                             backgroundColor: Colors.teal.withOpacity(0.85),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(3),
